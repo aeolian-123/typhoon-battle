@@ -238,7 +238,7 @@ body.playing .stage{background:#8fd3ff}
           <ul class="rules">
             <li><span class="dot" style="background:#a8742e"></span><span>葉子枯黃、樹根長出褐色菌絲的是病樹，走到樹前按「砍」。</span></li>
             <li><span class="dot" style="background:#5cc04f"></span><span>綠葉飽滿的健康樹砍不動，按下去會提醒你「這是健康的樹！」</span></li>
-            <li><span class="dot" style="background:#1f74d6;border-radius:50%"></span><span>青鳥群會圍住病樹不讓你砍，連按把牠們趕走。</span></li>
+            <li><span class="dot" style="background:#1592a6;border-radius:50%"></span><span>青鳥群會圍住病樹不讓你砍，連按把牠們趕走。</span></li>
             <li><span class="dot" style="background:#ffcf3a"></span><span>漏砍的病樹會惡化，還會把病傳給旁邊的健康樹。</span></li>
             <li><span class="dot" style="background:#4a6fd8"></span><span>第 30 秒颱風來襲，沒砍掉的病樹會倒向路人和車輛。</span></li>
           </ul>
@@ -253,6 +253,7 @@ body.playing .stage{background:#8fd3ff}
       <button id="music" type="button" aria-pressed="true">音樂：開</button>
       <button id="sound" type="button" aria-pressed="true">音效：開</button>
       <audio id="bgm" src="music.mp3" loop preload="auto"></audio>
+      <audio id="bgm2" src="typhoon.mp3" loop preload="auto"></audio>
     </div>
   </section>
 
@@ -340,7 +341,7 @@ function vehSprite(v){
   return cache[key];
 }
 const ARROW=sprite(["...kkk...","...kyk...","...kyk...","kkkkykkkk","kyyyyyyyk",".kyyyyyk.","..kyyyk..","...kyk...","....k...."]);
-const BIRD_PAL={g:'#9fd4ff',G:'#1f74d6',o:'#ffb02e'};
+const BIRD_PAL={g:'#9be8d8',G:'#1592a6',o:'#ffb02e'};
 const BIRD_A=sprite(["gg....",".gg...","..GGko",".GGGG.","......"],BIRD_PAL);
 const BIRD_B=sprite(["......","..GGko",".GGGG.",".gg...","gg...."],BIRD_PAL);
 const BIRDS=[[BIRD_A,BIRD_B],[flip(BIRD_A),flip(BIRD_B)]];
@@ -512,6 +513,7 @@ function infect(o){
   float(o.x,BASE-o.h,'被感染','warn');burst(o.x,BASE-4,10,['#c58b3c','#7a4f22']);
 }
 function startTyphoon(){
+  bgmTo('ty');
   G.typhoon=true;toast('颱風來襲！病樹撐不住了，快砍！','big');snd('storm');
 }
 function fallOff(t,acc){
@@ -631,7 +633,7 @@ function update(dt){
   // typhoon
   if(play){
     if(!G.typhoon&&!G.typhoonDone&&G.t>=30)startTyphoon();
-    if(G.typhoon&&G.t>=44){G.typhoon=false;G.typhoonDone=true;for(const t of G.trees)if(!t.falling&&!t.fallen)t.fallAt=null;toast('颱風遠離了，繼續清除病樹')}
+    if(G.typhoon&&G.t>=44){G.typhoon=false;G.typhoonDone=true;for(const t of G.trees)if(!t.falling&&!t.fallen)t.fallAt=null;toast('颱風遠離了，繼續清除病樹');bgmTo('main')}
     if(G.typhoon){
       const acc=[0,0,0];
       for(const t of G.trees){
@@ -829,27 +831,38 @@ addEventListener('keydown',e=>{
   e.preventDefault();
   if(G.mode==='play')chop();else if(G.mode!=='count')startGame();
 });
-// background music: plays from the start of each round, fades out at the results screen
-const bgm=$('bgm'),musicBtn=$('music');bgm.volume=.45;
+// background music: music.mp3 for patrol, typhoon.mp3 during the typhoon (30–44 s), fade out at results
+const VOL=.45,musicBtn=$('music');
+const tracks={main:$('bgm'),ty:$('bgm2')};
+let tyOk=true;tracks.ty.addEventListener('error',()=>{tyOk=false});   // no typhoon.mp3 → keep the patrol music
 let musicOn=true;try{musicOn=localStorage.getItem('music')!=='off'}catch(e){}
-let bgmTimer=null;
+let cur='main';const fades={};
+function fade(el,to,ms,done){
+  clearInterval(fades[el.id]);const from=el.volume,steps=Math.max(1,Math.round(ms/40));let i=0;
+  fades[el.id]=setInterval(()=>{i++;el.volume=Math.max(0,Math.min(1,from+(to-from)*i/steps));if(i>=steps){clearInterval(fades[el.id]);done&&done()}},40);
+}
+function play(el,onFail){const p=el.play();if(p&&p.catch)p.catch(()=>{onFail&&onFail()})}
 function bgmPlay(restart){
-  clearInterval(bgmTimer);bgm.volume=.45;
+  cur='main';Object.values(tracks).forEach(el=>{clearInterval(fades[el.id]);el.pause();el.volume=VOL;if(restart){try{el.currentTime=0}catch(e){}}});
+  if(musicOn)play(tracks.main);
+}
+function bgmTo(name){
+  if(name==='ty'&&(!tyOk||tracks.ty.error))return;
+  if(cur===name)return;const from=tracks[cur],to=tracks[name];cur=name;
   if(!musicOn)return;
-  if(restart){try{bgm.currentTime=0}catch(e){}}
-  const p=bgm.play();if(p&&p.catch)p.catch(()=>{});
+  fade(from,0,500,()=>from.pause());
+  to.volume=0;fade(to,VOL,500);
+  play(to,()=>{if(name==='ty'){tyOk=false;cur='main';clearInterval(fades[from.id]);from.volume=VOL;play(from)}});
 }
-function bgmFade(){
-  clearInterval(bgmTimer);
-  bgmTimer=setInterval(()=>{const v=bgm.volume-.03;if(v<=0){bgm.pause();bgm.volume=.45;clearInterval(bgmTimer)}else bgm.volume=v},80);
-}
+function bgmFade(){const el=tracks[cur];fade(el,0,1000,()=>{el.pause();el.volume=VOL})}
 function paintMusic(){musicBtn.textContent=musicOn?'音樂：開':'音樂：關';musicBtn.setAttribute('aria-pressed',musicOn)}
 paintMusic();
 musicBtn.addEventListener('click',()=>{
   musicOn=!musicOn;try{localStorage.setItem('music',musicOn?'on':'off')}catch(e){}
   paintMusic();
-  if(!musicOn){clearInterval(bgmTimer);bgm.pause()}
-  else if(G.mode==='play'||G.mode==='count')bgmPlay(false);
+  Object.values(tracks).forEach(el=>clearInterval(fades[el.id]));
+  if(!musicOn)Object.values(tracks).forEach(el=>el.pause());
+  else if(G.mode==='play'||G.mode==='count'){const el=tracks[cur];el.volume=VOL;play(el)}
 });
 $('sound').addEventListener('click',e=>{soundOn=!soundOn;e.currentTarget.textContent=soundOn?'音效：開':'音效：關';e.currentTarget.setAttribute('aria-pressed',soundOn)});
 
