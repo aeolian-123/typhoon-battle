@@ -448,8 +448,8 @@ function snd(k){switch(k){
 }}
 
 /* ---------- gameplay ---------- */
-// 可砍範圍：主角前方 ±13 像素；有青鳥的樹另外多 5 像素（約提早 0.1 秒）就能開始趕鳥
-const BIRD_EARLY=5;
+// 可砍範圍：主角前方 ±13 像素；有青鳥的樹另外多 2.3 像素（約提早 0.05 秒）就能開始趕鳥
+const BIRD_EARLY=2.3;
 const hasBirds=t=>t.birdsIn&&t.birds.some(b=>!b.gone);
 function pickTarget(){
   const reach=G.player.x+9;let best=null,bd=99,bird=null,bb=99;
