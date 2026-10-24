@@ -189,6 +189,8 @@ canvas#cv{display:block;width:100%;height:auto;image-rendering:pixelated;image-r
 .gi b{font-size:15px}
 .gi p{margin:0;font-size:13px;color:var(--muted);font-weight:500}
 .note{margin:0;font-size:13px;color:var(--muted);max-width:68ch}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 24px}
+.notes .note{max-width:none}
 
 /* focus mode while a round runs: game fills the screen, centered */
 body.playing{overflow:hidden}
@@ -275,7 +277,10 @@ body.playing .stage{background:#8fd3ff}
       <div class="gi"><canvas data-stage="3"></canvas><b>褐根病・末期</b><p>葉子幾乎掉光，樹基被菌絲面包住。漏砍的病樹會惡化成這樣。</p></div>
       <div class="gi"><canvas data-bird="1"></canvas><b>青鳥群</b><p>圍著病樹造謠不讓砍，累死公務員。<br>每按一下趕走兩隻。</p></div>
     </div>
+    <div class="notes">
     <p class="note">褐根病由有害木層孔菌引起，會讓根系腐朽，樹看起來還站著，颱風一來就容易整棵倒下。病菌會透過根部接觸傳給鄰近的樹，所以漏掉一棵，旁邊的樹也會跟著遭殃。</p>
+    <p class="note">林試所研究人員指出，樹冠萎凋程度與根部腐朽程度沒有相關，但倒伏風險與根部腐朽有關，所以不能從樹冠健康狀況判斷會不會倒，現場常可見外觀正常卻倒伏的案例。而一旦地上部出現黃化萎凋，根部通常已嚴重受害，難以救治；另一方面，根部及莖基部木材腐朽失去支撐力後，樹木甚至可能在無風狀況下倒伏。</p>
+    </div>
   </section>
 </main>
 
