@@ -45,12 +45,14 @@ img{max-width:100%}
 html,body{background:var(--bg);color:var(--ink)}
 body{font-family:var(--f-cjk);line-height:1.6}
 .wrap{max-width:980px;margin:0 auto;padding-block:22px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
-.head{display:grid;gap:6px}
+.head{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;row-gap:6px;align-items:start}
+.head>*{grid-column:1}
+.head>.brand{grid-column:2;grid-row:1/span 3;justify-self:end}
 .eyebrow{font-family:var(--f-pix);font-size:10px;letter-spacing:.08em;color:var(--rot)}
 h1{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-weight:900;line-height:1.15;letter-spacing:.04em}
 .h-main{font-size:clamp(32px,6.4vw,54px);text-shadow:3px 3px 0 var(--helmet)}
 .h-sub{font-size:clamp(16px,2.6vw,22px);background:var(--ink);color:var(--helmet);padding:4px 12px;letter-spacing:.12em}
-.brand img{display:block;height:clamp(46px,7vw,64px);width:auto}
+.brand img{display:block;height:clamp(40px,9vw,84px);width:auto}
 .head p{margin:0;color:var(--muted);max-width:60ch;font-weight:500}
 .head p.warn-line{color:#1f74d6;font-weight:900;font-size:16px}
 
@@ -232,7 +234,7 @@ body.playing .stage{background:#8fd3ff}
           <div class="eyebrow">任務簡報</div>
           <h2>巡邏 60 秒，清掉路上的褐根病樹</h2>
           <ul class="rules">
-            <li><span class="dot" style="background:#a8742e"></span><span>葉子枯黃、樹根長出褐色菌絲的是病樹，走到樹前按「砍」。末期病樹要砍兩下。</span></li>
+            <li><span class="dot" style="background:#a8742e"></span><span>葉子枯黃、樹根長出褐色菌絲的是病樹，走到樹前按「砍」。</span></li>
             <li><span class="dot" style="background:#5cc04f"></span><span>綠葉飽滿的健康樹砍不動，按下去會提醒你「這是健康的樹！」</span></li>
             <li><span class="dot" style="background:#1f74d6;border-radius:50%"></span><span>青鳥群會圍住病樹不讓你砍，連按把牠們趕走。</span></li>
             <li><span class="dot" style="background:#ffcf3a"></span><span>漏砍的病樹會惡化，還會把病傳給旁邊的健康樹。</span></li>
@@ -265,7 +267,7 @@ body.playing .stage{background:#8fd3ff}
       <div class="gi"><canvas data-stage="0"></canvas><b>健康樹</b><p>樹冠飽滿翠綠，樹基乾淨。砍不動，不用處理。</p></div>
       <div class="gi"><canvas data-stage="1"></canvas><b>褐根病・初期</b><p>葉片開始黃化，樹基出現褐色菌絲。砍一下。</p></div>
       <div class="gi"><canvas data-stage="2"></canvas><b>褐根病・中期</b><p>葉色黃褐、樹冠變稀，菌絲往上爬。砍一下。</p></div>
-      <div class="gi"><canvas data-stage="3"></canvas><b>褐根病・末期</b><p>葉子幾乎掉光，樹基被菌絲面包住。要砍兩下。</p></div>
+      <div class="gi"><canvas data-stage="3"></canvas><b>褐根病・末期</b><p>葉子幾乎掉光，樹基被菌絲面包住。漏砍的病樹會惡化成這樣。</p></div>
       <div class="gi"><canvas data-bird="1"></canvas><b>青鳥群</b><p>圍著病樹造謠不讓砍，累死公務員。<br>每按一下趕走兩隻。</p></div>
     </div>
     <p class="note">褐根病由有害木層孔菌引起，會讓根系腐朽，樹看起來還站著，颱風一來就容易整棵倒下。病菌會透過根部接觸傳給鄰近的樹，所以漏掉一棵，旁邊的樹也會跟著遭殃。</p>
@@ -446,12 +448,25 @@ function snd(k){switch(k){
 }}
 
 /* ---------- gameplay ---------- */
+// 可砍範圍：主角前方 ±13 像素；有青鳥的樹另外多 5 像素（約提早 0.1 秒）就能開始趕鳥
+const BIRD_EARLY=5;
+const hasBirds=t=>t.birdsIn&&t.birds.some(b=>!b.gone);
+function pickTarget(){
+  const reach=G.player.x+9;let best=null,bd=99,bird=null,bb=99;
+  for(const t of G.trees){
+    if(t.cut||t.falling||t.fallen)continue;
+    const d=t.x-reach,ad=Math.abs(d);
+    if(ad<=13&&ad<bd){bd=ad;best=t}
+    if(hasBirds(t)&&d>=-13&&d<=13+BIRD_EARLY&&ad<bb){bb=ad;bird=t}
+  }
+  if(best&&best.sick&&!hasBirds(best))return best;
+  return bird||best;
+}
 function chop(){
   if(G.mode!=='play')return;
   const P=G.player;if(P.cd>0||P.stun>0)return;
   P.cd=.2;P.swing=.2;
-  const reach=P.x+9;let best=null,bd=99;
-  for(const t of G.trees){if(t.cut||t.falling||t.fallen)continue;const d=Math.abs(t.x-reach);if(d<=13&&d<bd){bd=d;best=t}}
+  const best=pickTarget();
   if(!best){snd('whiff');return}
   const t=best;t.shake=.2;
   const guards=t.birds.filter(b=>!b.gone&&t.birdsIn);
@@ -733,8 +748,7 @@ function draw(){
   for(const p of G.parts){const x=Math.round(p.x-(p.g===0?0:0)-cam);rect(x,Math.round(p.y),p.s,p.s,p.col)}
   // target marker
   if(G.mode==='play'){
-    const reach=G.player.x+9;let best=null,bd=99;
-    for(const t of G.trees){if(t.cut||t.falling||t.fallen)continue;const d=Math.abs(t.x-reach);if(d<=13&&d<bd){bd=d;best=t}}
+    const best=pickTarget();
     if(best){const x=Math.round(best.x-cam)-4,y=BASE-best.h-13+Math.round(Math.sin(G.time*9)*2);ctx.drawImage(ARROW,x,y)}
   }
   // weather
