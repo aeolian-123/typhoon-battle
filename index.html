@@ -146,7 +146,9 @@ canvas#cv{display:block;width:100%;height:auto;image-rendering:pixelated;image-r
 #chop{font:900 24px var(--f-cjk);color:#fff;background:var(--vest);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);padding:10px 40px;cursor:pointer;letter-spacing:.2em;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 #chop:active{transform:translateY(5px);box-shadow:0 1px 0 var(--ink)}
 .keys{font-family:var(--f-pix);font-size:9px;color:var(--muted);line-height:1.8}
-#sound{margin-left:auto;font:700 13px var(--f-cjk);background:var(--panel);color:var(--ink);border:3px solid var(--ink);padding:6px 10px;cursor:pointer}
+#music{margin-left:auto;font:700 13px var(--f-cjk);background:var(--panel);color:var(--ink);border:3px solid var(--ink);padding:6px 10px;cursor:pointer}
+#music:focus-visible{outline:3px dashed var(--vest);outline-offset:3px}
+#sound{font:700 13px var(--f-cjk);background:var(--panel);color:var(--ink);border:3px solid var(--ink);padding:6px 10px;cursor:pointer}
 
 .share{display:grid;gap:10px;background:#fffbe8;border:4px solid var(--ink);padding:14px 16px}
 .share-rank{margin:0;font-weight:900;font-size:clamp(16px,2.2vw,20px)}
@@ -248,7 +250,9 @@ body.playing .stage{background:#8fd3ff}
     <div class="controls">
       <button id="chop" type="button" aria-label="砍">砍！</button>
       <span class="keys">SPACE / J<br>也可以點畫面</span>
+      <button id="music" type="button" aria-pressed="true">音樂：開</button>
       <button id="sound" type="button" aria-pressed="true">音效：開</button>
+      <audio id="bgm" src="music.mp3" loop preload="auto"></audio>
     </div>
   </section>
 
@@ -562,7 +566,7 @@ function endGame(){
     </div>`;
   setupShare();
   submitScore();
-  tagEl.hidden=true;document.body.classList.remove('playing');stageEl.classList.add('done');overlay.hidden=false;drawCompare();
+  bgmFade();tagEl.hidden=true;document.body.classList.remove('playing');stageEl.classList.add('done');overlay.hidden=false;drawCompare();
   try{overlay.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})}catch(e){}
   document.getElementById('again').addEventListener('click',startGame);
 }
@@ -790,7 +794,7 @@ nameIn.value=savedName;
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function startGame(){
   if(document.body.contains(nameIn)){savedName=nameIn.value.trim().slice(0,8);try{localStorage.setItem('pname',savedName)}catch(e){}}
-  ac();reset(false);G.mode='count';G.count=3;G.cnShown=0;
+  ac();reset(false);G.mode='count';G.count=3;G.cnShown=0;bgmPlay(true);
   G.name=savedName||'清除隊員';tagEl.textContent=G.name;tagEl.hidden=false;
   stageEl.classList.remove('done');overlay.hidden=true;document.body.classList.add('playing');hudLast='';
   toastBox.innerHTML='';fx.innerHTML='';
@@ -824,6 +828,28 @@ addEventListener('keydown',e=>{
   if(e.target.tagName==='BUTTON'&&(k===' '||k==='Enter'))return;
   e.preventDefault();
   if(G.mode==='play')chop();else if(G.mode!=='count')startGame();
+});
+// background music: plays from the start of each round, fades out at the results screen
+const bgm=$('bgm'),musicBtn=$('music');bgm.volume=.45;
+let musicOn=true;try{musicOn=localStorage.getItem('music')!=='off'}catch(e){}
+let bgmTimer=null;
+function bgmPlay(restart){
+  clearInterval(bgmTimer);bgm.volume=.45;
+  if(!musicOn)return;
+  if(restart){try{bgm.currentTime=0}catch(e){}}
+  const p=bgm.play();if(p&&p.catch)p.catch(()=>{});
+}
+function bgmFade(){
+  clearInterval(bgmTimer);
+  bgmTimer=setInterval(()=>{const v=bgm.volume-.03;if(v<=0){bgm.pause();bgm.volume=.45;clearInterval(bgmTimer)}else bgm.volume=v},80);
+}
+function paintMusic(){musicBtn.textContent=musicOn?'音樂：開':'音樂：關';musicBtn.setAttribute('aria-pressed',musicOn)}
+paintMusic();
+musicBtn.addEventListener('click',()=>{
+  musicOn=!musicOn;try{localStorage.setItem('music',musicOn?'on':'off')}catch(e){}
+  paintMusic();
+  if(!musicOn){clearInterval(bgmTimer);bgm.pause()}
+  else if(G.mode==='play'||G.mode==='count')bgmPlay(false);
 });
 $('sound').addEventListener('click',e=>{soundOn=!soundOn;e.currentTarget.textContent=soundOn?'音效：開':'音效：關';e.currentTarget.setAttribute('aria-pressed',soundOn)});
 
